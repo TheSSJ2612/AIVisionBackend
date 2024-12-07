@@ -16,9 +16,7 @@ class AIRouter:
 
     def consume(self):
 
-        image = Image.open(
-            "C:\\Users\\madan\\Projects\\BlindGlasses\\LocalLLMs\\TestData\\testimage2.jpg"
-        )
+        image = Image.open("api/assets/sample_img.jpg")
 
         conversation = [
             {

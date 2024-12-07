@@ -11,7 +11,7 @@ class AIService:
             return "already initialized"
         print("initializing....")
         model_id = "llava-hf/llava-interleave-qwen-0.5b-hf"
-        self.pipe = pipeline("image-to-text", model=model_id, device=0)
+        self.pipe = pipeline("image-to-text", model=model_id, device_map="cpu")
         self.processor = AutoProcessor.from_pretrained(model_id)
         return "initialized successfully"
 
