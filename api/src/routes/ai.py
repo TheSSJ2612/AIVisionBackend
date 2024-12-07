@@ -30,7 +30,7 @@ class AIRouter:
                 ],
             },
         ]
-        return self.ai_service.consume("some input text or media")
+        return self.ai_service.consume(image, conversation)
 
 
 # Create an instance of UserRouter to use in main.py
