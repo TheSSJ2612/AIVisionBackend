@@ -45,6 +45,3 @@ class AIService:
         except Exception as e:
             logger.error(f"Pipeline Error: {e}")
             raise RuntimeError("Error occurred while processing the AI model.") from e
-
-
-
