@@ -3,6 +3,10 @@ from ..services.ai_service import AIService
 from PIL import Image
 import io
 import time
+import logging
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
 
 
 class AIRouter:
@@ -40,28 +44,44 @@ class AIRouter:
         execution_time = time.time() - start_time
         print(f"Execution time for /ai/consume: {execution_time:.2f} seconds")
         return result
-
-    def consume_image(self, textInput, file: UploadFile = File(...)):
+    
+    def consume_image(self, textInput: str, file: UploadFile = File(...)):
         start_time = time.time()
-        # Read the uploaded image file
-        image_data = file.file.read()
-        image = Image.open(io.BytesIO(image_data))
 
-        conversation = [
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": textInput,
-                    },
-                    {"type": "image"},
-                ],
-            },
-        ]
-        result = self.ai_service.consume(image, conversation)
+        try:
+            # Read and validate the uploaded image file
+            image_data = file.file.read()
+            image = Image.open(io.BytesIO(image_data))
+
+            # Verify image type
+            if not isinstance(image, Image.Image):
+                raise ValueError("Uploaded file is not a valid image.")
+
+            # Prepare the conversation
+            conversation = [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": textInput,
+                        },
+                        {"type": "image"},
+                    ],
+                },
+            ]
+
+            # Pass the image and conversation to the AI service
+            result = self.ai_service.consume(image, conversation)
+
+        except Exception as e:
+            logger.error(f"Error in /ai/consume/image: {e}")
+            raise RuntimeError("Error occurred while processing AI service.") from e
+
+        # Measure execution time
         execution_time = time.time() - start_time
         print(f"Execution time for /ai/consume/image: {execution_time:.2f} seconds")
+
         return result
 
 
