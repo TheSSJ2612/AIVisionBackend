@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fastapi-app
+spec:
+  replicas: 1  # One replica to match the single node
+  selector:
+    matchLabels:
+      app: fastapi-app
+  template:
+    metadata:
+      labels:
+        app: fastapi-app
+    spec:
+      containers:
+      - name: fastapi-app
+        image: gcr.io/glass-cedar-448715-c5/fastapi-app:v2
+        resources:
+          requests:
+            cpu: "2000m"    # Request 2 vCPUs for guaranteed scheduling
+            memory: "12Gi"   # Request 8 GB of memory (leaving some for system overhead)
+          limits:
+            cpu: "4000m"    # Use up to 4 vCPUs
+            memory: "16Gi"  # Use the full 16 GB of node memory
