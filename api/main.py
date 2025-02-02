@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI
 from .src.routes.users import user_router
 from .src.routes.ai import ai_router
