@@ -52,5 +52,7 @@ dmypy.json
 # FastAPI
 api/assets/
 
+.env
+
 # Ignore any other files or directories specific to your project
 # Add additional patterns as needed
