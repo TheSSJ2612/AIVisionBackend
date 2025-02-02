@@ -106,7 +106,8 @@ class AIRouter:
         print(f"Execution time for /ai/consume/voice: {execution_time:.2f} seconds")
 
         # Return the audio as a streaming response (MIME type 'audio/mpeg' for MP3)
-        return StreamingResponse(io.BytesIO(tts_audio), media_type="audio/mpeg")
+        headers = {"Content-Disposition": "attachment; filename=output.mp3"}
+        return StreamingResponse(io.BytesIO(tts_audio), media_type="audio/mpeg", headers=headers)
 
 
 # Create an instance of UserRouter to use in main.py
