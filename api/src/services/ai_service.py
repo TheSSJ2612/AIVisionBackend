@@ -58,7 +58,7 @@ class AIService:
         client = speech.SpeechClient()
         config = speech.RecognitionConfig(
             encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
-            sample_rate_hertz=16000,  # Adjust to match your audio file sample rate
+            sample_rate_hertz=44100,  # Adjust to match your audio file sample rate
             language_code="hi-IN",
         )
         audio = speech.RecognitionAudio(content=audio_bytes)
@@ -103,6 +103,11 @@ class AIService:
         Returns:
             Audio bytes (MP3) of the Hindi answer.
         """
+        import google.auth
+
+        credentials, project = google.auth.default()
+        print("Active project:", project)
+
         try:
             # 1. Read audio bytes and run STT
             audio_bytes = audio_file.file.read()
@@ -140,8 +145,11 @@ class AIService:
             english_answer = outputs[0].get("generated_text", "No answer generated")
             logger.info(f"Model English answer: {english_answer}")
 
+            assistant_text = self.extract_assistant_response(english_answer)
+            logger.info(f"Extracted assistant response: {assistant_text}")
+
             # 6. Translate the English answer back to Hindi
-            hindi_answer = self.translate_text(english_answer, target_language="hi")
+            hindi_answer = self.translate_text(assistant_text, target_language="hi")
 
             # 7. Convert the Hindi answer to speech (TTS)
             tts_audio = self.synthesize_speech(hindi_answer)
@@ -151,3 +159,20 @@ class AIService:
         except Exception as e:
             logger.error(f"Error in consume_voice: {e}", exc_info=True)
             raise e
+        
+    def extract_assistant_response(self, full_text: str) -> str:
+        """
+        Extracts the assistant's response from the full conversation text.
+        It assumes that the conversation is formatted with markers such as "user" and "assistant".
+        Returns the text after the first occurrence of "assistant".
+        """
+        marker = "assistant"
+        lower_text = full_text.lower()
+        index = lower_text.find(marker)
+        if index != -1:
+            # Extract text after the marker
+            extracted = full_text[index + len(marker):].strip()
+            return extracted
+        # If marker not found, return the original text
+        return full_text
+
