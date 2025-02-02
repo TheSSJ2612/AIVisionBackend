@@ -1,4 +1,5 @@
-from fastapi import APIRouter, File, UploadFile
+from fastapi import APIRouter, File, UploadFile, HTTPException
+from fastapi.responses import StreamingResponse
 from ..services.ai_service import AIService
 from PIL import Image
 import io
@@ -17,6 +18,7 @@ class AIRouter:
         self.router.get("/ai/initialize", response_model=str)(self.initialize)
         self.router.get("/ai/consume", response_model=list)(self.consume)
         self.router.post("/ai/consume/image", response_model=list)(self.consume_image)
+        self.router.post("/ai/consume/voice")(self.consume_voice)
 
     def initialize(self):
         start_time = time.time()
@@ -83,6 +85,28 @@ class AIRouter:
         print(f"Execution time for /ai/consume/image: {execution_time:.2f} seconds")
 
         return result
+    
+    
+    def consume_voice(self, audio: UploadFile = File(...), image: UploadFile = File(...)):
+        """
+        Endpoint to process a voice query:
+        - 'audio': Hindi voice input (question)
+        - 'image': Associated image file for Visual QA
+        Returns synthesized Hindi audio as the answer.
+        """
+        start_time = time.time()
+        try:
+            # Process the voice input through the AI service
+            tts_audio = self.ai_service.consume_voice(audio, image)
+        except Exception as e:
+            logger.error(f"Error in /ai/consume/voice: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail="Error occurred while processing voice input.") from e
+
+        execution_time = time.time() - start_time
+        print(f"Execution time for /ai/consume/voice: {execution_time:.2f} seconds")
+
+        # Return the audio as a streaming response (MIME type 'audio/mpeg' for MP3)
+        return StreamingResponse(io.BytesIO(tts_audio), media_type="audio/mpeg")
 
 
 # Create an instance of UserRouter to use in main.py
