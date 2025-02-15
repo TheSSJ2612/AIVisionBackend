@@ -1,5 +1,5 @@
 from fastapi import HTTPException
-from ..models.user_model import UserModel
+from api.src.models.user_model import UserModel
 
 
 class UserService:

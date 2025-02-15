@@ -1,17 +1,17 @@
+import os
 from dotenv import load_dotenv
+from fastapi import FastAPI
+from api.src.routes.ai import ai_router
 
 # Force override any existing environment variables:
-load_dotenv(dotenv_path=r"C:\Users\ShubhamTaneja\backendModels\AIVisionBackend\.env", override=True)
+load_dotenv(dotenv_path="./.env", override=True)
+print("OPENROUTER_API_KEY", os.environ.get("OPENROUTER_API_KEY"))
+print("TAVILY_API_KEY", os.environ.get("TAVILY_API_KEY"))
 
 
-import os
-print("GOOGLE_APPLICATION_CREDENTIALS:",
-      os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"))
-
-
-from fastapi import FastAPI
-from .src.routes.users import user_router
-from .src.routes.ai import ai_router
+# print(
+#     "GOOGLE_APPLICATION_CREDENTIALS:", os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+# )
 
 app = FastAPI()
 # app.include_router(user_router)

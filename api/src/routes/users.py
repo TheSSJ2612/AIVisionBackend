@@ -1,6 +1,6 @@
 from fastapi import APIRouter
-from ..models.user_model import UserModel
-from ..services.user_services import UserService
+from api.src.models.user_model import UserModel
+from api.src.services.user_services import UserService
 
 
 class UserRouter:
