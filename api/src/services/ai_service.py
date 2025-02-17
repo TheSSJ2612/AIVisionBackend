@@ -10,7 +10,7 @@ import base64
 import os
 import openai
 
-from langchain_community.chat_models.openai import ChatOpenAI
+from langchain_openai import ChatOpenAI
 from langchain.agents import initialize_agent
 from langchain_community.tools.tavily_search import TavilySearchResults
 
