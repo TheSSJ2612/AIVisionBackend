@@ -8,11 +8,13 @@ from google.cloud import translate_v2 as translate
 
 import base64
 import os
-import openai
 
+from typing import List, Union
+from langchain_core.messages import HumanMessage, AIMessage
 from langchain_openai import ChatOpenAI
-from langchain.agents import initialize_agent
+from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_community.tools.tavily_search import TavilySearchResults
+from langchain_core.prompts import ChatPromptTemplate
 
 from api.src.services.memory_service import MultimodalConversationMemory
 
@@ -22,45 +24,31 @@ logger.setLevel(logging.INFO)
 
 class AIService:
     def __init__(self):
-        print("MAIN START")
         self.agent = None  # This will be our LangChain agent instance.
+        self.agent_executor = None
         self.memory = MultimodalConversationMemory(memory_key="chat_history")
         self.users_db = []
-        print("MAIN END")
 
     def initalize(self):
         try:
 
             if self.agent:
-                print("already initialized")
                 return "already initialized"
             logger.info(
                 "Initializing LangChain agent with OpenRouter API model and Tavily search tool..."
             )
-            print(
-                "Initializing LangChain agent with OpenRouter API model and Tavily search tool..."
-            )
 
-            # Configure the openai package to use OpenRouter.
-            openai.api_base = "https://openrouter.ai/api/v1"
-            # For the free variant, an API key is optional. If you have one, set it via OPENROUTER_API_KEY.
-            openai.api_key = os.environ.get("OPENROUTER_API_KEY", "")
-
-            print("Initiallizing ChatOpenAI")
-            # Create a ChatOpenAI instance configured for OpenRouter.
             llm = ChatOpenAI(
-                model_name="qwen/qwen2.5-vl-72b-instruct:free",
-                base_url="https://openrouter.ai/api/v1",
-                temperature=0.3,
-                api_key=os.environ.get("OPENROUTER_API_KEY", ""),
+                openai_api_key=os.getenv("OPENROUTER_API_KEY"),
+                openai_api_base=os.getenv("OPENROUTER_BASE_URL"),
+                model_name=os.getenv("OPENROUTER_MODEL_NAME"),
+                temperature=os.getenv("OPENROUTER_MODEL_TEMPERATURE"),
             )
-            print("ChatOpenAI initialized")
 
-            print("Tavilytool initializing")
             # Initialize the Tavily search tool for web search.
             tavily_tool = TavilySearchResults(
                 name="tavily_search_engine",
-                description="A search engine optimized for real-time web info retrieval.",
+                description="A search engine optimized for retrieving information from web based on user query.",
                 max_results=5,
                 search_depth="basic",
                 include_answer=True,
@@ -69,22 +57,42 @@ class AIService:
                 verbose=False,
             )
             tools = [tavily_tool]
-            print("Tavilytool initialized")
 
-            print("initializing agent main")
-            # Create a LangChain agent that can call the Tavily tool when needed.
-            self.agent = initialize_agent(
-                tools,
-                llm,
-                agent="zero-shot-react-description",
-                verbose=True,
-                memory=self.memory,
+            # Create multimodal prompt template
+            prompt = ChatPromptTemplate.from_messages(
+                [
+                    (
+                        "system",
+                        """You are a multimodal assistant for blind user. 
+                        Analyze both text and images to answer questions.
+                        You have access to Chat history between assistant and user.
+                        You have access to tavily_tool which can be used to search the web.
+                        Follow these rules:
+                        1. Focus FIRST on [CURRENT REQUEST] and [CURRENT IMAGES]
+                        2. Use tavily_tool to search for information whenever latest information or news or real-time data is needed
+                        3. If you cant give a good answer, say so and ask for more information
+                        4. Only use [CONVERSATION HISTORY CONTEXT] if relevant and necessary. Give preference to latest user query.
+                        5. Never describe old images unless explicitly asked
+                        6. State clearly when using historical context""",
+                    ),
+                    ("placeholder", "{chat_history}"),
+                    ("human", "{input}"),
+                    ("placeholder", "{agent_scratchpad}"),
+                ]
             )
-            print("Agent initialized main")
+
+            # Create a LangChain agent that can call the Tavily tool when needed.
+            self.agent = create_tool_calling_agent(llm, tools, prompt)
+            self.agent_executor = AgentExecutor(
+                agent=self.agent,
+                tools=tools,
+                memory=self.memory,
+                verbose=True,
+                handle_parsing_errors=True,
+            )
             return "initialized successfully"
         except Exception as e:
             logger.error(f"Error in initalize: {e}")
-            print(f"Error in initalize: {e}")
             raise RuntimeError("Error occurred while initializing the AI model.") from e
 
     def consume(self, image: Image.Image, query_text: str) -> dict:
@@ -95,7 +103,6 @@ class AIService:
         if not self.agent:
             self.initalize()
         try:
-            print("START")
             user_text = query_text.strip()
             image_data = None
             if image:
@@ -122,6 +129,70 @@ class AIService:
         except Exception as e:
             logger.error(f"Pipeline Error: {e}")
             raise RuntimeError("Error occurred while processing the AI model.") from e
+
+    def process_multimodal_input(
+        self, text: str = None, images: Union[str, bytes] = None
+    ):
+        """Handle text, images, or both"""
+        content = []
+        user_text = ""
+        image_data = ""
+
+        if text:
+            content.append({"type": "text", "text": text})
+            user_text = text.strip()
+
+        if images:
+            img = images  # Handle different image formats
+            b64_img = ""
+            if isinstance(img, str):
+                if img.startswith("http"):
+                    # URL case
+                    b64_img = img
+                    content.append({"type": "image_url", "image_url": {"url": img}})
+                elif os.path.exists(img):  # Actual file path
+                    with open(img, "rb") as f:
+                        img_bytes = f.read()
+                    b64_img = base64.b64encode(img_bytes).decode("utf-8")
+                    content.append(
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/jpeg;base64,{b64_img}"},
+                        }
+                    )
+                else:  # Base64 string case
+                    b64_img = img
+                    content.append(
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/jpeg;base64,{b64_img}"},
+                        }
+                    )
+            elif isinstance(img, bytes):
+                b64_img = base64.b64encode(img).decode("utf-8")
+                content.append(
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{b64_img}"},
+                    }
+                )
+            image_data = b64_img
+
+        # Update memory with the new user message.
+        self.memory.add_message("user", user_text, image_data)
+
+        response = self.agent_executor.invoke({"input": content})
+
+        output = response["output"]
+
+        self.memory.add_message("assistant", output)
+
+        return {"generated_text": output}
+
+    def load_image_as_base64(self, file_path: str) -> str:
+        """Return base64 string only (original version)"""
+        with open(file_path, "rb") as image_file:
+            return base64.b64encode(image_file.read()).decode("utf-8")
 
     # def stt(self, audio_bytes: bytes) -> str:
     #     """Convert Hindi audio bytes to text using Google Cloud Speech-to-Text."""

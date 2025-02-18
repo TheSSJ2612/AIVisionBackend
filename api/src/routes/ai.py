@@ -5,6 +5,7 @@ from PIL import Image
 import io
 import time
 import logging
+from typing import Optional, List, Union
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -18,6 +19,7 @@ class AIRouter:
         self.router.get("/ai/initialize", response_model=str)(self.initialize)
         self.router.get("/ai/consume", response_model=dict)(self.consume)
         self.router.post("/ai/consume/image", response_model=dict)(self.consume_image)
+        self.router.post("/ai/consume/rag")(self.consume_rag)
         # self.router.post("/ai/consume/voice")(self.consume_voice)
         print("AIRouter END")
 
@@ -63,6 +65,37 @@ class AIRouter:
             raise HTTPException(
                 status_code=500, detail="Error occurred while processing AI service."
             ) from e
+        execution_time = time.time() - start_time
+        print(f"Execution time for /ai/consume/image: {execution_time:.2f} seconds")
+        return result
+
+    def consume_rag(
+        self,
+        textInput: Optional[str] = Form(""),
+        file: Optional[UploadFile] = File(None),
+    ):
+        """Process either text or image but not both empty."""
+        start_time = time.time()
+
+        if not textInput and not file:
+            raise HTTPException(
+                status_code=400, detail="Either text or file must be provided."
+            )
+
+        try:
+            if file:
+                image_bytes = file.read()
+                images = image_bytes
+
+            result = self.ai_service.process_multimodal_input(
+                textInput if textInput else None, images if images else None
+            )
+        except Exception as e:
+            logger.error(f"Error in /ai/consume/image: {e}")
+            raise HTTPException(
+                status_code=500, detail="Error occurred while processing AI service."
+            ) from e
+
         execution_time = time.time() - start_time
         print(f"Execution time for /ai/consume/image: {execution_time:.2f} seconds")
         return result

@@ -11,9 +11,11 @@ class MultimodalConversationMemory(BaseChatMemory, BaseModel):
     def memory_variables(self) -> list:
         return [self.memory_key]
 
-    def load_memory_variables(self, inputs: dict) -> dict:
+    def load_memory_variables(self, inputs: dict, latest_memory_count=10) -> dict:
         memory_text = ""
-        for msg in self.messages:
+        # Get only the latest messages based on latest_memory_count
+        recent_messages = self.messages[-latest_memory_count:]
+        for msg in recent_messages:
             if "image" in msg:
                 memory_text += f"{msg['role']}: {msg['text']} [Image data: {msg['image'][:50]}...]\n"
             else:
