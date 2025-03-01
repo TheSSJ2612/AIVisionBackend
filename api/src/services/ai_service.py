@@ -59,7 +59,8 @@ class AIService:
         config = speech.RecognitionConfig(
             encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
             sample_rate_hertz=44100,  # Adjust to match your audio file sample rate
-            language_code="hi-IN",
+            language_code="hi-IN",  # 'und' enables automatic language detection
+            alternative_language_codes=["hi-IN", "en-IN"],  # Prioritize Hindi and English
         )
         audio = speech.RecognitionAudio(content=audio_bytes)
         response = client.recognize(config=config, audio=audio)

@@ -51,6 +51,7 @@ dmypy.json
 
 # FastAPI
 api/assets/
+test_wav/
 
 .env
 
