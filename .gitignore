@@ -61,6 +61,7 @@ dmypy.json
 api/assets/
 
 .env
+test_wav/
 
 # Ignore any other files or directories specific to your project
 # Add additional patterns as needed
